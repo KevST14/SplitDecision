@@ -19,6 +19,7 @@ def poll_once() -> None:
                 outcome_prices=market["outcome_prices"],
                 volume=market["volume"],
                 liquidity=market["liquidity"],
+                one_day_change=market["one_day_change"],
             )
         except Exception:
             log.exception("failed to poll market %s", condition_id)

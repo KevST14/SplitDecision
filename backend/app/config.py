@@ -10,4 +10,7 @@ CLOB_API_BASE = os.environ.get("CLOB_API_BASE", "https://clob.polymarket.com")
 # How often the background poller refreshes watchlisted markets, in seconds.
 POLL_INTERVAL_SECONDS = int(os.environ.get("POLL_INTERVAL_SECONDS", "300"))
 
+# Origin allowed to call the API (the Vite dev server, or a deployed frontend).
+FRONTEND_ORIGIN = os.environ.get("FRONTEND_ORIGIN", "http://localhost:5173")
+
 DB_PATH.parent.mkdir(parents=True, exist_ok=True)

@@ -1,12 +1,17 @@
+import logging
 from contextlib import asynccontextmanager
 
 from apscheduler.schedulers.background import BackgroundScheduler
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from . import polymarket_client, storage
-from .config import POLL_INTERVAL_SECONDS
+from .config import FRONTEND_ORIGIN, POLL_INTERVAL_SECONDS
 from .poller import poll_once
+from .polymarket_client import PolymarketAPIError
+
+log = logging.getLogger("api")
 
 scheduler = BackgroundScheduler()
 
@@ -24,28 +29,33 @@ app = FastAPI(title="Polymarket Monitor", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=[FRONTEND_ORIGIN],
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
+@app.exception_handler(PolymarketAPIError)
+def handle_polymarket_error(request: Request, exc: PolymarketAPIError):
+    log.warning("polymarket API error on %s: %s", request.url.path, exc)
+    return JSONResponse(status_code=502, content={"detail": "Polymarket API is unreachable right now."})
+
+
 @app.get("/api/markets/top")
-def top_markets(limit: int = 25):
-    return polymarket_client.get_top_markets(limit=limit)
+def top_markets(limit: int = 25, sort: str = "volume24hr"):
+    return polymarket_client.get_top_markets(limit=limit, sort=sort)
 
 
 @app.get("/api/markets/search")
-def search_markets(q: str, limit: int = 20):
-    return polymarket_client.search_markets(q, limit=limit)
+def search_markets(q: str = "", limit: int = 20, sort: str = "volume24hr"):
+    return polymarket_client.search_markets(q, limit=limit, sort=sort)
 
 
 @app.get("/api/watchlist")
 def get_watchlist():
     entries = storage.list_watchlist()
     for entry in entries:
-        latest = storage.get_latest_snapshot(entry["condition_id"])
-        entry["latest"] = latest
+        entry["latest"] = storage.get_latest_snapshot(entry["condition_id"])
     return entries
 
 
@@ -53,13 +63,14 @@ def get_watchlist():
 def add_watchlist(condition_id: str):
     market = polymarket_client.get_market_by_condition_id(condition_id)
     if market is None:
-        raise HTTPException(status_code=404, detail="market not found")
+        raise HTTPException(status_code=404, detail="Market not found")
     storage.add_to_watchlist(market)
     storage.record_snapshot(
         condition_id=market["condition_id"],
         outcome_prices=market["outcome_prices"],
         volume=market["volume"],
         liquidity=market["liquidity"],
+        one_day_change=market["one_day_change"],
     )
     return {"status": "ok"}
 

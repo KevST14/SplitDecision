@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS watchlist (
     question TEXT,
     outcomes TEXT,        -- JSON list, e.g. ["Yes", "No"]
     clob_token_ids TEXT,  -- JSON list, aligned with outcomes
+    icon TEXT,
+    event_title TEXT,
     added_at REAL NOT NULL
 );
 
@@ -22,6 +24,7 @@ CREATE TABLE IF NOT EXISTS snapshots (
     outcome_prices TEXT NOT NULL, -- JSON list, aligned with watchlist.outcomes
     volume REAL,
     liquidity REAL,
+    one_day_change REAL,
     FOREIGN KEY (condition_id) REFERENCES watchlist (condition_id)
 );
 
@@ -49,11 +52,12 @@ def add_to_watchlist(market: dict) -> None:
     with get_db() as conn:
         conn.execute(
             """
-            INSERT INTO watchlist (condition_id, slug, question, outcomes, clob_token_ids, added_at)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO watchlist (condition_id, slug, question, outcomes, clob_token_ids, icon, event_title, added_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(condition_id) DO UPDATE SET
                 slug=excluded.slug, question=excluded.question,
-                outcomes=excluded.outcomes, clob_token_ids=excluded.clob_token_ids
+                outcomes=excluded.outcomes, clob_token_ids=excluded.clob_token_ids,
+                icon=excluded.icon, event_title=excluded.event_title
             """,
             (
                 market["condition_id"],
@@ -61,6 +65,8 @@ def add_to_watchlist(market: dict) -> None:
                 market["question"],
                 json.dumps(market["outcomes"]),
                 json.dumps(market["clob_token_ids"]),
+                market.get("icon"),
+                market.get("event_title"),
                 time.time(),
             ),
         )
@@ -85,16 +91,35 @@ def _row_to_watchlist_dict(row: sqlite3.Row) -> dict:
         "question": row["question"],
         "outcomes": json.loads(row["outcomes"]),
         "clob_token_ids": json.loads(row["clob_token_ids"]),
+        "icon": row["icon"],
+        "event_title": row["event_title"],
         "added_at": row["added_at"],
     }
 
 
-def record_snapshot(condition_id: str, outcome_prices: list[float], volume: float | None, liquidity: float | None) -> None:
+def record_snapshot(
+    condition_id: str,
+    outcome_prices: list[float],
+    volume: float | None,
+    liquidity: float | None,
+    one_day_change: float | None = None,
+) -> None:
     with get_db() as conn:
         conn.execute(
-            "INSERT INTO snapshots (condition_id, ts, outcome_prices, volume, liquidity) VALUES (?, ?, ?, ?, ?)",
-            (condition_id, time.time(), json.dumps(outcome_prices), volume, liquidity),
+            "INSERT INTO snapshots (condition_id, ts, outcome_prices, volume, liquidity, one_day_change) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (condition_id, time.time(), json.dumps(outcome_prices), volume, liquidity, one_day_change),
         )
+
+
+def _row_to_snapshot_dict(row: sqlite3.Row) -> dict:
+    return {
+        "ts": row["ts"],
+        "outcome_prices": json.loads(row["outcome_prices"]),
+        "volume": row["volume"],
+        "liquidity": row["liquidity"],
+        "one_day_change": row["one_day_change"],
+    }
 
 
 def get_history(condition_id: str, since_ts: float | None = None) -> list[dict]:
@@ -108,15 +133,7 @@ def get_history(condition_id: str, since_ts: float | None = None) -> list[dict]:
             rows = conn.execute(
                 "SELECT * FROM snapshots WHERE condition_id = ? ORDER BY ts ASC", (condition_id,)
             ).fetchall()
-        return [
-            {
-                "ts": r["ts"],
-                "outcome_prices": json.loads(r["outcome_prices"]),
-                "volume": r["volume"],
-                "liquidity": r["liquidity"],
-            }
-            for r in rows
-        ]
+        return [_row_to_snapshot_dict(r) for r in rows]
 
 
 def get_latest_snapshot(condition_id: str) -> dict | None:
@@ -124,11 +141,4 @@ def get_latest_snapshot(condition_id: str) -> dict | None:
         row = conn.execute(
             "SELECT * FROM snapshots WHERE condition_id = ? ORDER BY ts DESC LIMIT 1", (condition_id,)
         ).fetchone()
-        if row is None:
-            return None
-        return {
-            "ts": row["ts"],
-            "outcome_prices": json.loads(row["outcome_prices"]),
-            "volume": row["volume"],
-            "liquidity": row["liquidity"],
-        }
+        return _row_to_snapshot_dict(row) if row is not None else None
