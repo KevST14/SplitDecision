@@ -1,7 +1,38 @@
 import { WatchlistEntry } from "../api";
+import { usePriceFlash } from "../hooks";
 import { ChangeBadge } from "./ChangeBadge";
 import { MarketChart } from "./MarketChart";
 import { MarketIcon } from "./MarketIcon";
+import { ProbabilityBar } from "./ProbabilityBar";
+
+function WatchlistCard({ entry, onRemove }: { entry: WatchlistEntry; onRemove: (id: string) => void }) {
+  const flash = usePriceFlash(entry.latest?.outcome_prices[0] ?? null);
+
+  return (
+    <div className={`watchlist-card ${flash ? `flash-${flash}` : ""}`}>
+      <div className="watchlist-card-header">
+        <MarketIcon src={entry.icon} alt={entry.question} />
+        <div className="watchlist-card-title">
+          <span className="market-question">{entry.question}</span>
+          {entry.event_title && <span className="event-chip">{entry.event_title}</span>}
+        </div>
+        <button className="remove-btn" onClick={() => onRemove(entry.condition_id)}>
+          Remove
+        </button>
+      </div>
+      {entry.latest && (
+        <div className="watchlist-card-prices">
+          <ProbabilityBar outcomes={entry.outcomes} prices={entry.latest.outcome_prices} />
+          <div className="watchlist-card-change">
+            <ChangeBadge change={entry.latest.one_day_change} />
+            <span className="muted">24h</span>
+          </div>
+        </div>
+      )}
+      <MarketChart entry={entry} />
+    </div>
+  );
+}
 
 export function Watchlist({
   entries,
@@ -19,34 +50,11 @@ export function Watchlist({
       {entries.length === 0 && (
         <div className="empty-state empty-state-block">
           <p>Nothing watched yet.</p>
-          <p className="muted">Add markets from the browse panel to start tracking odds over time.</p>
+          <p className="muted">Add markets from the Markets tab to start tracking odds over time.</p>
         </div>
       )}
       {entries.map((entry) => (
-        <div key={entry.condition_id} className="watchlist-card">
-          <div className="watchlist-card-header">
-            <MarketIcon src={entry.icon} alt={entry.question} />
-            <div className="watchlist-card-title">
-              <span className="market-question">{entry.question}</span>
-              {entry.event_title && <span className="event-chip">{entry.event_title}</span>}
-            </div>
-            <button className="remove-btn" onClick={() => onRemove(entry.condition_id)}>
-              Remove
-            </button>
-          </div>
-          {entry.latest && (
-            <div className="market-row-prices">
-              {entry.outcomes.map((o, i) => (
-                <span key={o} className="price-chip">
-                  {o}: {((entry.latest!.outcome_prices[i] ?? 0) * 100).toFixed(1)}%
-                </span>
-              ))}
-              <ChangeBadge change={entry.latest.one_day_change} />
-              <span className="muted">24h</span>
-            </div>
-          )}
-          <MarketChart entry={entry} />
-        </div>
+        <WatchlistCard key={entry.condition_id} entry={entry} onRemove={onRemove} />
       ))}
     </div>
   );

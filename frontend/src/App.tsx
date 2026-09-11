@@ -1,12 +1,27 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Toaster, toast } from "sonner";
-import { ApiError, api, WatchlistEntry } from "./api";
+import { Alert, ApiError, AppConfig, api, WatchlistEntry } from "./api";
+import { AlertBell } from "./components/AlertBell";
+import { AlertsView } from "./components/AlertsView";
 import { MarketList } from "./components/MarketList";
+import { NavTabs } from "./components/NavTabs";
+import { OverviewView } from "./components/OverviewView";
 import { Watchlist } from "./components/Watchlist";
+import { useCountUp, useHashTab } from "./hooks";
+
+const LAST_SEEN_ALERT_KEY = "polymarket-monitor:last-seen-alert-id";
 
 export default function App() {
+  const [tab, setTab] = useHashTab();
   const [watchlist, setWatchlist] = useState<WatchlistEntry[]>([]);
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [config, setConfig] = useState<AppConfig | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [lastSeenAlertId, setLastSeenAlertId] = useState<number>(() => {
+    const stored = Number(localStorage.getItem(LAST_SEEN_ALERT_KEY));
+    return Number.isFinite(stored) ? stored : 0;
+  });
+  const knownAlertIds = useRef<Set<number> | null>(null);
 
   const refreshWatchlist = useCallback(() => {
     api
@@ -20,13 +35,57 @@ export default function App() {
       });
   }, []);
 
+  const refreshAlerts = useCallback(() => {
+    api
+      .getAlerts(50)
+      .then((data) => {
+        setAlerts(data);
+        if (knownAlertIds.current === null) {
+          // First load: don't toast for alerts that already existed before the app opened.
+          knownAlertIds.current = new Set(data.map((a) => a.id));
+          return;
+        }
+        const fresh = data.filter((a) => !knownAlertIds.current!.has(a.id));
+        fresh.forEach((a) => knownAlertIds.current!.add(a.id));
+        fresh.slice(0, 3).forEach((a) => {
+          const up = a.change > 0;
+          const toastFn = up ? toast.success : toast.error;
+          toastFn(`${up ? "▲" : "▼"} ${a.question}`, {
+            description: `${a.outcome} ${(a.from_price * 100).toFixed(0)}% → ${(a.to_price * 100).toFixed(0)}%`,
+          });
+        });
+      })
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
+    api.getConfig().then(setConfig).catch(() => {});
     refreshWatchlist();
-    const id = setInterval(refreshWatchlist, 30_000);
-    return () => clearInterval(id);
-  }, [refreshWatchlist]);
+    refreshAlerts();
+    const watchlistId = setInterval(refreshWatchlist, 30_000);
+    const alertsId = setInterval(refreshAlerts, 20_000);
+    return () => {
+      clearInterval(watchlistId);
+      clearInterval(alertsId);
+    };
+  }, [refreshWatchlist, refreshAlerts]);
 
   const watchedIds = useMemo(() => new Set(watchlist.map((w) => w.condition_id)), [watchlist]);
+  const unreadAlertCount = useMemo(() => alerts.filter((a) => a.id > lastSeenAlertId).length, [alerts, lastSeenAlertId]);
+  const animatedWatchedCount = useCountUp(watchlist.length);
+
+  const markAlertsSeen = useCallback(() => {
+    setLastSeenAlertId((prev) => {
+      const maxId = alerts.reduce((max, a) => Math.max(max, a.id), prev);
+      localStorage.setItem(LAST_SEEN_ALERT_KEY, String(maxId));
+      return maxId;
+    });
+  }, [alerts]);
+
+  // Mark alerts as seen whenever the Alerts tab becomes active, however we got there.
+  useEffect(() => {
+    if (tab === "alerts") markAlertsSeen();
+  }, [tab, markAlertsSeen]);
 
   const handleWatch = async (conditionId: string) => {
     try {
@@ -56,22 +115,40 @@ export default function App() {
           <h1>Polymarket Monitor</h1>
           <p className="muted">Track odds, volume, and movement on prediction markets you care about.</p>
         </div>
-        <div className="header-stats">
-          <div className="stat">
-            <span className="stat-value">{watchlist.length}</span>
-            <span className="stat-label">watched</span>
-          </div>
-          {lastUpdated && (
+        <div className="header-right">
+          <div className="header-stats">
             <div className="stat">
-              <span className="stat-value">{lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
-              <span className="stat-label">updated</span>
+              <span className="stat-value">{Math.round(animatedWatchedCount)}</span>
+              <span className="stat-label">watched</span>
             </div>
-          )}
+            {lastUpdated && (
+              <div className="stat">
+                <span className="stat-value">
+                  {lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                </span>
+                <span className="stat-label">updated</span>
+              </div>
+            )}
+          </div>
+          <AlertBell unreadCount={unreadAlertCount} onClick={() => setTab("alerts")} />
         </div>
       </header>
-      <main className="app-grid">
-        <MarketList onWatch={handleWatch} watchedIds={watchedIds} />
-        <Watchlist entries={watchlist} onRemove={handleRemove} />
+
+      <NavTabs active={tab} onChange={setTab} />
+
+      <main className="app-main">
+        {tab === "overview" && (
+          <OverviewView
+            watchlist={watchlist}
+            alerts={alerts}
+            watchedIds={watchedIds}
+            onWatch={handleWatch}
+            onNavigate={setTab}
+          />
+        )}
+        {tab === "markets" && <MarketList onWatch={handleWatch} watchedIds={watchedIds} />}
+        {tab === "watchlist" && <Watchlist entries={watchlist} onRemove={handleRemove} />}
+        {tab === "alerts" && <AlertsView alerts={alerts} config={config} />}
       </main>
     </div>
   );

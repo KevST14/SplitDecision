@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { api, Market, SortOption } from "../api";
 import { useDebouncedValue } from "../hooks";
-import { ChangeBadge } from "./ChangeBadge";
-import { MarketIcon } from "./MarketIcon";
+import { CategoryChips } from "./CategoryChips";
+import { MarketCard } from "./MarketCard";
 import { MarketListSkeleton } from "./Skeleton";
 
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
@@ -21,6 +21,7 @@ export function MarketList({
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebouncedValue(query, 300);
   const [sort, setSort] = useState<SortOption>("volume24hr");
+  const [category, setCategory] = useState("trending");
   const [markets, setMarkets] = useState<Market[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -30,8 +31,8 @@ export function MarketList({
     setLoading(true);
     setError(null);
     const fetcher = debouncedQuery.trim()
-      ? api.searchMarkets(debouncedQuery.trim(), 30, sort)
-      : api.topMarkets(25, sort);
+      ? api.searchMarkets(debouncedQuery.trim(), 30, sort, category)
+      : api.topMarkets(24, sort, category);
     fetcher
       .then((data) => !cancelled && setMarkets(data))
       .catch((err) => !cancelled && setError(err.message ?? "Failed to load markets"))
@@ -39,7 +40,7 @@ export function MarketList({
     return () => {
       cancelled = true;
     };
-  }, [debouncedQuery, sort]);
+  }, [debouncedQuery, sort, category]);
 
   return (
     <div className="panel">
@@ -53,6 +54,9 @@ export function MarketList({
           ))}
         </select>
       </div>
+
+      <CategoryChips active={category} onChange={setCategory} />
+
       <div className="search-wrap">
         <span className="search-icon">⌕</span>
         <input
@@ -65,47 +69,16 @@ export function MarketList({
 
       {error && <p className="error-text">{error}</p>}
 
-      <ul className="market-list">
-        {loading && <MarketListSkeleton />}
+      <div className="market-grid">
+        {loading && <MarketListSkeleton rows={8} />}
         {!loading && !error && markets.length === 0 && (
-          <li className="empty-state">No markets match "{query}".</li>
+          <p className="empty-state">No markets match "{query}".</p>
         )}
         {!loading &&
-          markets.map((m) => {
-            const isWatched = watchedIds.has(m.condition_id);
-            return (
-              <li key={m.condition_id} className="market-row">
-                <MarketIcon src={m.icon} alt={m.question} />
-                <div className="market-row-body">
-                  <div className="market-row-top">
-                    <span className="market-question">{m.question}</span>
-                    <ChangeBadge change={m.one_day_change} />
-                  </div>
-                  <div className="market-row-meta">
-                    {m.event_title && <span className="event-chip">{m.event_title}</span>}
-                    <span className="muted">
-                      vol ${Math.round(m.volume).toLocaleString()} · liq ${Math.round(m.liquidity).toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="market-row-prices">
-                    {m.outcomes.map((o, i) => (
-                      <span key={o} className="price-chip">
-                        {o}: {((m.outcome_prices[i] ?? 0) * 100).toFixed(1)}%
-                      </span>
-                    ))}
-                  </div>
-                </div>
-                <button
-                  className={isWatched ? "watch-btn watch-btn-active" : "watch-btn"}
-                  disabled={isWatched}
-                  onClick={() => onWatch(m.condition_id)}
-                >
-                  {isWatched ? "Watching" : "+ Watch"}
-                </button>
-              </li>
-            );
-          })}
-      </ul>
+          markets.map((m) => (
+            <MarketCard key={m.condition_id} market={m} isWatched={watchedIds.has(m.condition_id)} onWatch={onWatch} />
+          ))}
+      </div>
     </div>
   );
 }

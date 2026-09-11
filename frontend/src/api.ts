@@ -38,6 +38,29 @@ export interface WatchlistEntry {
   latest: Snapshot | null;
 }
 
+export interface Category {
+  id: string;
+  label: string;
+  tag_id: number | null;
+}
+
+export interface Alert {
+  id: number;
+  condition_id: string;
+  question: string;
+  icon: string | null;
+  outcome: string;
+  from_price: number;
+  to_price: number;
+  change: number;
+  ts: number;
+}
+
+export interface AppConfig {
+  odds_swing_threshold: number;
+  poll_interval_seconds: number;
+}
+
 export class ApiError extends Error {}
 
 async function json<T>(res: Response): Promise<T> {
@@ -49,13 +72,19 @@ async function json<T>(res: Response): Promise<T> {
 }
 
 export const api = {
-  topMarkets: (limit = 25, sort: SortOption = "volume24hr") =>
-    fetch(`/api/markets/top?limit=${limit}&sort=${sort}`).then((r) => json<Market[]>(r)),
+  topMarkets: (limit = 25, sort: SortOption = "volume24hr", category = "trending") =>
+    fetch(`/api/markets/top?limit=${limit}&sort=${sort}&category=${category}`).then((r) => json<Market[]>(r)),
 
-  searchMarkets: (q: string, limit = 30, sort: SortOption = "volume24hr") =>
-    fetch(`/api/markets/search?q=${encodeURIComponent(q)}&limit=${limit}&sort=${sort}`).then((r) =>
-      json<Market[]>(r),
-    ),
+  searchMarkets: (q: string, limit = 30, sort: SortOption = "volume24hr", category = "trending") =>
+    fetch(
+      `/api/markets/search?q=${encodeURIComponent(q)}&limit=${limit}&sort=${sort}&category=${category}`,
+    ).then((r) => json<Market[]>(r)),
+
+  getMovers: (limit = 6) => fetch(`/api/markets/movers?limit=${limit}`).then((r) => json<Market[]>(r)),
+
+  getCategories: () => fetch("/api/categories").then((r) => json<Category[]>(r)),
+
+  getConfig: () => fetch("/api/config").then((r) => json<AppConfig>(r)),
 
   getWatchlist: () => fetch("/api/watchlist").then((r) => json<WatchlistEntry[]>(r)),
 
@@ -67,4 +96,6 @@ export const api = {
 
   getHistory: (conditionId: string) =>
     fetch(`/api/watchlist/${encodeURIComponent(conditionId)}/history`).then((r) => json<Snapshot[]>(r)),
+
+  getAlerts: (limit = 50) => fetch(`/api/alerts?limit=${limit}`).then((r) => json<Alert[]>(r)),
 };
