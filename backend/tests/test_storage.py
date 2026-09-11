@@ -98,3 +98,33 @@ def test_list_alerts_respects_limit(storage):
         storage.create_alert("0xabc", "Q", None, "Yes", from_price=0.5, to_price=0.5 + i * 0.01)
 
     assert len(storage.list_alerts(limit=2)) == 2
+
+
+def test_get_watchlist_entry(storage):
+    storage.add_to_watchlist(SAMPLE_MARKET)
+
+    assert storage.get_watchlist_entry("0xabc")["question"] == "Will it happen?"
+    assert storage.get_watchlist_entry("0xdoesnotexist") is None
+
+
+def test_prediction_round_trip_starts_unresolved(storage):
+    storage.add_to_watchlist(SAMPLE_MARKET)
+
+    created = storage.create_prediction("0xabc", "Will it happen?", "Yes", your_probability=0.7, market_probability=0.6)
+
+    assert created["resolved_at"] is None
+    predictions = storage.list_predictions()
+    assert len(predictions) == 1
+    assert storage.get_open_predictions("0xabc") == predictions
+
+
+def test_resolve_prediction(storage):
+    storage.add_to_watchlist(SAMPLE_MARKET)
+    created = storage.create_prediction("0xabc", "Will it happen?", "Yes", your_probability=0.7, market_probability=0.6)
+
+    storage.resolve_prediction(created["id"], actual_outcome=1.0, your_brier=0.09, market_brier=0.16)
+
+    resolved = storage.list_predictions()[0]
+    assert resolved["resolved_at"] is not None
+    assert resolved["your_brier"] == pytest.approx(0.09)
+    assert storage.get_open_predictions("0xabc") == []

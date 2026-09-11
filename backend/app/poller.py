@@ -2,6 +2,7 @@ import logging
 
 from . import polymarket_client, storage
 from .config import ODDS_SWING_THRESHOLD
+from .stats import brier_score
 
 log = logging.getLogger("poller")
 
@@ -22,6 +23,30 @@ def detect_swings(
         if abs(after - before) >= threshold:
             swings.append((outcome, before, after))
     return swings
+
+
+def score_resolved_predictions(
+    outcomes: list[str], final_outcome_prices: list[float], open_predictions: list[dict]
+) -> list[dict]:
+    """Once a market closes, its outcome prices settle near 0 or 1 (the
+    realized result). Score every still-open prediction against that."""
+    results = []
+    for pred in open_predictions:
+        if pred["outcome"] not in outcomes:
+            continue
+        idx = outcomes.index(pred["outcome"])
+        if idx >= len(final_outcome_prices):
+            continue
+        actual = round(final_outcome_prices[idx])
+        results.append(
+            {
+                "prediction_id": pred["id"],
+                "actual_outcome": float(actual),
+                "your_brier": brier_score(pred["your_probability"], actual),
+                "market_brier": brier_score(pred["market_probability"], actual),
+            }
+        )
+    return results
 
 
 def poll_once() -> None:
@@ -56,6 +81,12 @@ def poll_once() -> None:
                 liquidity=market["liquidity"],
                 one_day_change=market["one_day_change"],
             )
+
+            if market["closed"]:
+                open_predictions = storage.get_open_predictions(condition_id)
+                for result in score_resolved_predictions(entry["outcomes"], market["outcome_prices"], open_predictions):
+                    storage.resolve_prediction(**result)
+                    log.info("prediction %s resolved: actual=%s", result["prediction_id"], result["actual_outcome"])
         except Exception:
             log.exception("failed to poll market %s", condition_id)
 

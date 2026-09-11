@@ -43,6 +43,22 @@ CREATE TABLE IF NOT EXISTS alerts (
 );
 
 CREATE INDEX IF NOT EXISTS idx_alerts_ts ON alerts (ts DESC);
+
+CREATE TABLE IF NOT EXISTS predictions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    condition_id TEXT NOT NULL,
+    question TEXT NOT NULL,
+    outcome TEXT NOT NULL,
+    your_probability REAL NOT NULL,
+    market_probability REAL NOT NULL,
+    created_at REAL NOT NULL,
+    resolved_at REAL,
+    actual_outcome REAL,
+    your_brier REAL,
+    market_brier REAL
+);
+
+CREATE INDEX IF NOT EXISTS idx_predictions_condition ON predictions (condition_id);
 """
 
 
@@ -96,6 +112,12 @@ def list_watchlist() -> list[dict]:
     with get_db() as conn:
         rows = conn.execute("SELECT * FROM watchlist ORDER BY added_at DESC").fetchall()
         return [_row_to_watchlist_dict(r) for r in rows]
+
+
+def get_watchlist_entry(condition_id: str) -> dict | None:
+    with get_db() as conn:
+        row = conn.execute("SELECT * FROM watchlist WHERE condition_id = ?", (condition_id,)).fetchone()
+        return _row_to_watchlist_dict(row) if row is not None else None
 
 
 def _row_to_watchlist_dict(row: sqlite3.Row) -> dict:
@@ -196,3 +218,55 @@ def list_alerts(limit: int = 50, since_ts: float | None = None) -> list[dict]:
             }
             for r in rows
         ]
+
+
+def _row_to_prediction_dict(row: sqlite3.Row) -> dict:
+    return {
+        "id": row["id"],
+        "condition_id": row["condition_id"],
+        "question": row["question"],
+        "outcome": row["outcome"],
+        "your_probability": row["your_probability"],
+        "market_probability": row["market_probability"],
+        "created_at": row["created_at"],
+        "resolved_at": row["resolved_at"],
+        "actual_outcome": row["actual_outcome"],
+        "your_brier": row["your_brier"],
+        "market_brier": row["market_brier"],
+    }
+
+
+def create_prediction(
+    condition_id: str, question: str, outcome: str, your_probability: float, market_probability: float
+) -> dict:
+    with get_db() as conn:
+        cursor = conn.execute(
+            "INSERT INTO predictions (condition_id, question, outcome, your_probability, market_probability, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (condition_id, question, outcome, your_probability, market_probability, time.time()),
+        )
+        row = conn.execute("SELECT * FROM predictions WHERE id = ?", (cursor.lastrowid,)).fetchone()
+        return _row_to_prediction_dict(row)
+
+
+def list_predictions() -> list[dict]:
+    with get_db() as conn:
+        rows = conn.execute("SELECT * FROM predictions ORDER BY created_at DESC").fetchall()
+        return [_row_to_prediction_dict(r) for r in rows]
+
+
+def get_open_predictions(condition_id: str) -> list[dict]:
+    with get_db() as conn:
+        rows = conn.execute(
+            "SELECT * FROM predictions WHERE condition_id = ? AND resolved_at IS NULL", (condition_id,)
+        ).fetchall()
+        return [_row_to_prediction_dict(r) for r in rows]
+
+
+def resolve_prediction(prediction_id: int, actual_outcome: float, your_brier: float, market_brier: float) -> None:
+    with get_db() as conn:
+        conn.execute(
+            "UPDATE predictions SET resolved_at = ?, actual_outcome = ?, your_brier = ?, market_brier = ? "
+            "WHERE id = ?",
+            (time.time(), actual_outcome, your_brier, market_brier, prediction_id),
+        )
