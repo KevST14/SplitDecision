@@ -29,6 +29,20 @@ CREATE TABLE IF NOT EXISTS snapshots (
 );
 
 CREATE INDEX IF NOT EXISTS idx_snapshots_condition_ts ON snapshots (condition_id, ts);
+
+CREATE TABLE IF NOT EXISTS alerts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    condition_id TEXT NOT NULL,
+    question TEXT NOT NULL,
+    icon TEXT,
+    outcome TEXT NOT NULL,
+    from_price REAL NOT NULL,
+    to_price REAL NOT NULL,
+    change REAL NOT NULL,
+    ts REAL NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_alerts_ts ON alerts (ts DESC);
 """
 
 
@@ -142,3 +156,43 @@ def get_latest_snapshot(condition_id: str) -> dict | None:
             "SELECT * FROM snapshots WHERE condition_id = ? ORDER BY ts DESC LIMIT 1", (condition_id,)
         ).fetchone()
         return _row_to_snapshot_dict(row) if row is not None else None
+
+
+def create_alert(
+    condition_id: str,
+    question: str,
+    icon: str | None,
+    outcome: str,
+    from_price: float,
+    to_price: float,
+) -> None:
+    with get_db() as conn:
+        conn.execute(
+            "INSERT INTO alerts (condition_id, question, icon, outcome, from_price, to_price, change, ts) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (condition_id, question, icon, outcome, from_price, to_price, to_price - from_price, time.time()),
+        )
+
+
+def list_alerts(limit: int = 50, since_ts: float | None = None) -> list[dict]:
+    with get_db() as conn:
+        if since_ts is not None:
+            rows = conn.execute(
+                "SELECT * FROM alerts WHERE ts >= ? ORDER BY ts DESC LIMIT ?", (since_ts, limit)
+            ).fetchall()
+        else:
+            rows = conn.execute("SELECT * FROM alerts ORDER BY ts DESC LIMIT ?", (limit,)).fetchall()
+        return [
+            {
+                "id": r["id"],
+                "condition_id": r["condition_id"],
+                "question": r["question"],
+                "icon": r["icon"],
+                "outcome": r["outcome"],
+                "from_price": r["from_price"],
+                "to_price": r["to_price"],
+                "change": r["change"],
+                "ts": r["ts"],
+            }
+            for r in rows
+        ]

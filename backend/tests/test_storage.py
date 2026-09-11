@@ -78,3 +78,23 @@ def test_latest_snapshot_is_most_recent(storage):
 
     assert latest["outcome_prices"] == [0.9, 0.1]
     assert latest["volume"] == 30.0
+
+
+def test_create_and_list_alerts(storage):
+    storage.create_alert("0xabc", "Will it happen?", "icon.png", "Yes", from_price=0.5, to_price=0.62)
+    storage.create_alert("0xabc", "Will it happen?", "icon.png", "No", from_price=0.5, to_price=0.38)
+
+    alerts = storage.list_alerts()
+
+    assert len(alerts) == 2
+    # Most recent first.
+    assert alerts[0]["outcome"] == "No"
+    assert alerts[0]["change"] == pytest.approx(-0.12)
+    assert alerts[1]["change"] == pytest.approx(0.12)
+
+
+def test_list_alerts_respects_limit(storage):
+    for i in range(5):
+        storage.create_alert("0xabc", "Q", None, "Yes", from_price=0.5, to_price=0.5 + i * 0.01)
+
+    assert len(storage.list_alerts(limit=2)) == 2

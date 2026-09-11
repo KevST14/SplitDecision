@@ -68,18 +68,22 @@ def _normalize_market(raw: dict) -> dict:
 _SORT_ASCENDING = {"endDate"}
 
 
-def search_markets(query: str, limit: int = 20, sort: str = "volume24hr") -> list[dict]:
+def _market_params(limit: int, sort: str, tag_id: int | None) -> dict:
+    params = {
+        "active": "true",
+        "closed": "false",
+        "limit": limit,
+        "order": sort,
+        "ascending": str(sort in _SORT_ASCENDING).lower(),
+    }
+    if tag_id is not None:
+        params["tag_id"] = tag_id
+    return params
+
+
+def search_markets(query: str, limit: int = 20, sort: str = "volume24hr", tag_id: int | None = None) -> list[dict]:
     """Search active markets by keyword (matched against the question text)."""
-    resp = _get(
-        f"{GAMMA_API_BASE}/markets",
-        params={
-            "active": "true",
-            "closed": "false",
-            "limit": 200,
-            "order": sort,
-            "ascending": str(sort in _SORT_ASCENDING).lower(),
-        },
-    )
+    resp = _get(f"{GAMMA_API_BASE}/markets", params=_market_params(200, sort, tag_id))
     markets = [_normalize_market(m) for m in resp.json()]
     if query:
         needle = query.lower()
@@ -87,18 +91,23 @@ def search_markets(query: str, limit: int = 20, sort: str = "volume24hr") -> lis
     return markets[:limit]
 
 
-def get_top_markets(limit: int = 25, sort: str = "volume24hr") -> list[dict]:
-    resp = _get(
-        f"{GAMMA_API_BASE}/markets",
-        params={
-            "active": "true",
-            "closed": "false",
-            "limit": limit,
-            "order": sort,
-            "ascending": str(sort in _SORT_ASCENDING).lower(),
-        },
-    )
+def get_top_markets(limit: int = 25, sort: str = "volume24hr", tag_id: int | None = None) -> list[dict]:
+    resp = _get(f"{GAMMA_API_BASE}/markets", params=_market_params(limit, sort, tag_id))
     return [_normalize_market(m) for m in resp.json()]
+
+
+def get_movers(limit: int = 6, min_volume_24hr: float = 20_000) -> list[dict]:
+    """The biggest 24h odds swings among markets that actually have volume.
+
+    Sorting the whole catalog by oneDayPriceChange surfaces illiquid,
+    near-zero-volume markets whose "swings" are just noise. Instead, take a
+    pool of currently-active markets and rank by absolute change within it.
+    """
+    resp = _get(f"{GAMMA_API_BASE}/markets", params=_market_params(100, "volume24hr", None))
+    markets = [_normalize_market(m) for m in resp.json()]
+    liquid = [m for m in markets if m["volume_24hr"] >= min_volume_24hr and m["one_day_change"] is not None]
+    liquid.sort(key=lambda m: abs(m["one_day_change"]), reverse=True)
+    return liquid[:limit]
 
 
 def get_market_by_slug(slug: str) -> dict | None:
