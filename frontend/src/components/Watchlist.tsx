@@ -1,11 +1,22 @@
-import { WatchlistEntry } from "../api";
+import { Prediction, WatchlistEntry } from "../api";
 import { usePriceFlash } from "../hooks";
 import { ChangeBadge } from "./ChangeBadge";
 import { MarketChart } from "./MarketChart";
 import { MarketIcon } from "./MarketIcon";
+import { PredictionForm } from "./PredictionForm";
 import { ProbabilityBar } from "./ProbabilityBar";
 
-function WatchlistCard({ entry, onRemove }: { entry: WatchlistEntry; onRemove: (id: string) => void }) {
+function WatchlistCard({
+  entry,
+  prediction,
+  onRemove,
+  onPredicted,
+}: {
+  entry: WatchlistEntry;
+  prediction: Prediction | undefined;
+  onRemove: (id: string) => void;
+  onPredicted: () => void;
+}) {
   const flash = usePriceFlash(entry.latest?.outcome_prices[0] ?? null);
 
   return (
@@ -30,16 +41,21 @@ function WatchlistCard({ entry, onRemove }: { entry: WatchlistEntry; onRemove: (
         </div>
       )}
       <MarketChart entry={entry} />
+      <PredictionForm entry={entry} prediction={prediction} onPredicted={onPredicted} />
     </div>
   );
 }
 
 export function Watchlist({
   entries,
+  predictions,
   onRemove,
+  onPredicted,
 }: {
   entries: WatchlistEntry[];
+  predictions: Prediction[];
   onRemove: (conditionId: string) => void;
+  onPredicted: () => void;
 }) {
   return (
     <div className="panel">
@@ -54,7 +70,13 @@ export function Watchlist({
         </div>
       )}
       {entries.map((entry) => (
-        <WatchlistCard key={entry.condition_id} entry={entry} onRemove={onRemove} />
+        <WatchlistCard
+          key={entry.condition_id}
+          entry={entry}
+          prediction={predictions.find((p) => p.condition_id === entry.condition_id)}
+          onRemove={onRemove}
+          onPredicted={onPredicted}
+        />
       ))}
     </div>
   );

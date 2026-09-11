@@ -63,7 +63,7 @@ export function usePriceFlash(value: number | null | undefined, holdMs = 900): "
   return flash;
 }
 
-const VALID_TABS = ["overview", "markets", "watchlist", "alerts"] as const;
+const VALID_TABS = ["overview", "markets", "watchlist", "calibrate", "correlate", "alerts", "about"] as const;
 export type TabId = (typeof VALID_TABS)[number];
 
 function readHashTab(): TabId {

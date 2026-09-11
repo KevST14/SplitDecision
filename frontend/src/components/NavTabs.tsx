@@ -5,7 +5,10 @@ const TABS: { id: TabId; label: string; icon: string }[] = [
   { id: "overview", label: "Overview", icon: "◆" },
   { id: "markets", label: "Markets", icon: "⌕" },
   { id: "watchlist", label: "Watchlist", icon: "★" },
+  { id: "calibrate", label: "Calibrate", icon: "◎" },
+  { id: "correlate", label: "Correlate", icon: "∿" },
   { id: "alerts", label: "Alerts", icon: "⚡" },
+  { id: "about", label: "About", icon: "?" },
 ];
 
 export function NavTabs({ active, onChange }: { active: TabId; onChange: (tab: TabId) => void }) {

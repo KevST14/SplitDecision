@@ -61,6 +61,41 @@ export interface AppConfig {
   poll_interval_seconds: number;
 }
 
+export interface Prediction {
+  id: number;
+  condition_id: string;
+  question: string;
+  outcome: string;
+  your_probability: number;
+  market_probability: number;
+  created_at: number;
+  resolved_at: number | null;
+  actual_outcome: number | null;
+  your_brier: number | null;
+  market_brier: number | null;
+}
+
+export interface PredictionSummary {
+  total: number;
+  resolved: number;
+  pending: number;
+  your_avg_brier: number | null;
+  market_avg_brier: number | null;
+  wins: number;
+}
+
+export interface CorrelationPoint {
+  ts: number;
+  a: number | null;
+  b: number | null;
+}
+
+export interface CorrelationResult {
+  points: CorrelationPoint[];
+  correlation: number | null;
+  description: string | null;
+}
+
 export class ApiError extends Error {}
 
 async function json<T>(res: Response): Promise<T> {
@@ -98,4 +133,19 @@ export const api = {
     fetch(`/api/watchlist/${encodeURIComponent(conditionId)}/history`).then((r) => json<Snapshot[]>(r)),
 
   getAlerts: (limit = 50) => fetch(`/api/alerts?limit=${limit}`).then((r) => json<Alert[]>(r)),
+
+  addPrediction: (conditionId: string, outcome: string, yourProbability: number) =>
+    fetch("/api/predictions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ condition_id: conditionId, outcome, your_probability: yourProbability }),
+    }).then((r) => json<Prediction>(r)),
+
+  getPredictions: () =>
+    fetch("/api/predictions").then((r) => json<{ predictions: Prediction[]; summary: PredictionSummary }>(r)),
+
+  getCorrelation: (a: string, b: string) =>
+    fetch(`/api/correlate?a=${encodeURIComponent(a)}&b=${encodeURIComponent(b)}`).then((r) =>
+      json<CorrelationResult>(r),
+    ),
 };

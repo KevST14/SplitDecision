@@ -1,20 +1,34 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Toaster, toast } from "sonner";
-import { Alert, ApiError, AppConfig, api, WatchlistEntry } from "./api";
+import { Alert, ApiError, AppConfig, api, Prediction, PredictionSummary, WatchlistEntry } from "./api";
+import { AboutView } from "./components/AboutView";
 import { AlertBell } from "./components/AlertBell";
 import { AlertsView } from "./components/AlertsView";
+import { CalibrateView } from "./components/CalibrateView";
+import { CorrelateView } from "./components/CorrelateView";
 import { MarketList } from "./components/MarketList";
 import { NavTabs } from "./components/NavTabs";
 import { OverviewView } from "./components/OverviewView";
 import { Watchlist } from "./components/Watchlist";
 import { useCountUp, useHashTab } from "./hooks";
 
-const LAST_SEEN_ALERT_KEY = "polymarket-monitor:last-seen-alert-id";
+const LAST_SEEN_ALERT_KEY = "split-decision:last-seen-alert-id";
+
+const EMPTY_SUMMARY: PredictionSummary = {
+  total: 0,
+  resolved: 0,
+  pending: 0,
+  your_avg_brier: null,
+  market_avg_brier: null,
+  wins: 0,
+};
 
 export default function App() {
   const [tab, setTab] = useHashTab();
   const [watchlist, setWatchlist] = useState<WatchlistEntry[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [predictions, setPredictions] = useState<Prediction[]>([]);
+  const [predictionSummary, setPredictionSummary] = useState<PredictionSummary>(EMPTY_SUMMARY);
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [lastSeenAlertId, setLastSeenAlertId] = useState<number>(() => {
@@ -33,6 +47,16 @@ export default function App() {
       .catch(() => {
         // Silent on background refresh — the panels already show their own errors.
       });
+  }, []);
+
+  const refreshPredictions = useCallback(() => {
+    api
+      .getPredictions()
+      .then(({ predictions, summary }) => {
+        setPredictions(predictions);
+        setPredictionSummary(summary);
+      })
+      .catch(() => {});
   }, []);
 
   const refreshAlerts = useCallback(() => {
@@ -62,13 +86,16 @@ export default function App() {
     api.getConfig().then(setConfig).catch(() => {});
     refreshWatchlist();
     refreshAlerts();
+    refreshPredictions();
     const watchlistId = setInterval(refreshWatchlist, 30_000);
     const alertsId = setInterval(refreshAlerts, 20_000);
+    const predictionsId = setInterval(refreshPredictions, 30_000);
     return () => {
       clearInterval(watchlistId);
       clearInterval(alertsId);
+      clearInterval(predictionsId);
     };
-  }, [refreshWatchlist, refreshAlerts]);
+  }, [refreshWatchlist, refreshAlerts, refreshPredictions]);
 
   const watchedIds = useMemo(() => new Set(watchlist.map((w) => w.condition_id)), [watchlist]);
   const unreadAlertCount = useMemo(() => alerts.filter((a) => a.id > lastSeenAlertId).length, [alerts, lastSeenAlertId]);
@@ -112,8 +139,12 @@ export default function App() {
       <Toaster theme="dark" richColors position="bottom-right" />
       <header className="app-header">
         <div>
-          <h1>Polymarket Monitor</h1>
-          <p className="muted">Track odds, volume, and movement on prediction markets you care about.</p>
+          <h1>
+            Split<span className="header-accent">Decision</span>
+          </h1>
+          <p className="muted">
+            A student's odds-watching, calibration-testing side project built on top of Polymarket's public data.
+          </p>
         </div>
         <div className="header-right">
           <div className="header-stats">
@@ -147,8 +178,13 @@ export default function App() {
           />
         )}
         {tab === "markets" && <MarketList onWatch={handleWatch} watchedIds={watchedIds} />}
-        {tab === "watchlist" && <Watchlist entries={watchlist} onRemove={handleRemove} />}
+        {tab === "watchlist" && (
+          <Watchlist entries={watchlist} predictions={predictions} onRemove={handleRemove} onPredicted={refreshPredictions} />
+        )}
+        {tab === "calibrate" && <CalibrateView predictions={predictions} summary={predictionSummary} />}
+        {tab === "correlate" && <CorrelateView entries={watchlist} />}
         {tab === "alerts" && <AlertsView alerts={alerts} config={config} />}
+        {tab === "about" && <AboutView />}
       </main>
     </div>
   );
