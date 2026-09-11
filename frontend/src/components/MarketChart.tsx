@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { api, WatchlistEntry } from "../api";
 
-const COLORS = ["#5b8cff", "#ff6b8a", "#3ccf9c", "#f5b942"];
+const COLORS = ["#5fd97a", "#ff5470", "#ffb454", "#7c9cff"];
 
 function CustomTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;

@@ -1,4 +1,4 @@
-const SEGMENT_COLORS = ["#5b8cff", "#ff6b8a", "#3ccf9c", "#f5b942"];
+const SEGMENT_COLORS = ["#5fd97a", "#ff5470", "#ffb454", "#7c9cff"];
 
 export function ProbabilityBar({ outcomes, prices }: { outcomes: string[]; prices: number[] }) {
   return (
