@@ -69,7 +69,7 @@ export function MarketList({
 
       {error && <p className="error-text">{error}</p>}
 
-      <div className="market-grid">
+      <div className="market-grid stagger-in">
         {loading && <MarketListSkeleton rows={8} />}
         {!loading && !error && markets.length === 0 && (
           <p className="empty-state">No markets match "{query}".</p>

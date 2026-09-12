@@ -27,7 +27,7 @@ export function MoversHero({ onWatch, watchedIds }: { onWatch: (id: string) => v
         </div>
       )}
       {movers !== null && movers.length === 0 && <p className="empty-state">No notable moves right now.</p>}
-      <div className="movers-grid">
+      <div className="movers-grid stagger-in">
         {movers?.map((m) => (
           <div key={m.condition_id} className="mover-card">
             <div className="mover-card-top">

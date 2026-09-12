@@ -168,23 +168,25 @@ export default function App() {
       <NavTabs active={tab} onChange={setTab} />
 
       <main className="app-main">
-        {tab === "overview" && (
-          <OverviewView
-            watchlist={watchlist}
-            alerts={alerts}
-            watchedIds={watchedIds}
-            onWatch={handleWatch}
-            onNavigate={setTab}
-          />
-        )}
-        {tab === "markets" && <MarketList onWatch={handleWatch} watchedIds={watchedIds} />}
-        {tab === "watchlist" && (
-          <Watchlist entries={watchlist} predictions={predictions} onRemove={handleRemove} onPredicted={refreshPredictions} />
-        )}
-        {tab === "calibrate" && <CalibrateView predictions={predictions} summary={predictionSummary} />}
-        {tab === "correlate" && <CorrelateView entries={watchlist} />}
-        {tab === "alerts" && <AlertsView alerts={alerts} config={config} />}
-        {tab === "about" && <AboutView />}
+        <div key={tab} className="tab-transition">
+          {tab === "overview" && (
+            <OverviewView
+              watchlist={watchlist}
+              alerts={alerts}
+              watchedIds={watchedIds}
+              onWatch={handleWatch}
+              onNavigate={setTab}
+            />
+          )}
+          {tab === "markets" && <MarketList onWatch={handleWatch} watchedIds={watchedIds} />}
+          {tab === "watchlist" && (
+            <Watchlist entries={watchlist} predictions={predictions} onRemove={handleRemove} onPredicted={refreshPredictions} />
+          )}
+          {tab === "calibrate" && <CalibrateView predictions={predictions} summary={predictionSummary} />}
+          {tab === "correlate" && <CorrelateView entries={watchlist} />}
+          {tab === "alerts" && <AlertsView alerts={alerts} config={config} />}
+          {tab === "about" && <AboutView />}
+        </div>
       </main>
     </div>
   );

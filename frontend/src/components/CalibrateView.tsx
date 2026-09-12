@@ -59,7 +59,7 @@ export function CalibrateView({
           <p className="muted">Watch a market and lock in your gut probability before checking the price.</p>
         </div>
       ) : (
-        <ul className="calibrate-list">
+        <ul className="calibrate-list stagger-in">
           {predictions.map((p) => (
             <li key={p.id} className="calibrate-row">
               <div className="calibrate-row-main">

@@ -63,6 +63,23 @@ export function usePriceFlash(value: number | null | undefined, holdMs = 900): "
   return flash;
 }
 
+/** True for a brief moment whenever `value` increases past its previous value. */
+export function usePulseOnIncrease(value: number, holdMs = 700): boolean {
+  const [pulsing, setPulsing] = useState(false);
+  const prevRef = useRef(value);
+
+  useEffect(() => {
+    const prev = prevRef.current;
+    prevRef.current = value;
+    if (prefersReducedMotion || value <= prev) return;
+    setPulsing(true);
+    const id = setTimeout(() => setPulsing(false), holdMs);
+    return () => clearTimeout(id);
+  }, [value, holdMs]);
+
+  return pulsing;
+}
+
 const VALID_TABS = ["overview", "markets", "watchlist", "calibrate", "correlate", "alerts", "about"] as const;
 export type TabId = (typeof VALID_TABS)[number];
 

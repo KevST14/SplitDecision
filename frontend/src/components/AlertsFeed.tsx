@@ -13,7 +13,7 @@ export function AlertsFeed({ alerts, emptyHint }: { alerts: Alert[]; emptyHint?:
   }
 
   return (
-    <ul className="alerts-feed">
+    <ul className="alerts-feed stagger-in">
       {alerts.map((a) => {
         const up = a.change > 0;
         return (
