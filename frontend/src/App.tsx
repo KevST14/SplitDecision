@@ -7,6 +7,7 @@ import { AlertsView } from "./components/AlertsView";
 import { CalibrateView } from "./components/CalibrateView";
 import { CorrelateView } from "./components/CorrelateView";
 import { MarketList } from "./components/MarketList";
+import { MatrixRain } from "./components/MatrixRain";
 import { NavTabs } from "./components/NavTabs";
 import { OverviewView } from "./components/OverviewView";
 import { Watchlist } from "./components/Watchlist";
@@ -135,59 +136,62 @@ export default function App() {
   };
 
   return (
-    <div className="app">
-      <Toaster theme="dark" richColors position="bottom-right" />
-      <header className="app-header">
-        <div>
-          <h1>
-            Split<span className="header-accent">Decision</span>
-          </h1>
-          <p className="muted">
-            A student's odds-watching, calibration-testing side project built on top of Polymarket's public data.
-          </p>
-        </div>
-        <div className="header-right">
-          <div className="header-stats">
-            <div className="stat">
-              <span className="stat-value">{Math.round(animatedWatchedCount)}</span>
-              <span className="stat-label">watched</span>
-            </div>
-            {lastUpdated && (
-              <div className="stat">
-                <span className="stat-value">
-                  {lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                </span>
-                <span className="stat-label">updated</span>
-              </div>
-            )}
+    <>
+      <MatrixRain />
+      <div className="app">
+        <Toaster theme="dark" richColors position="bottom-right" />
+        <header className="app-header">
+          <div>
+            <h1>
+              Split<span className="header-accent">Decision</span>
+            </h1>
+            <p className="muted">
+              A student's odds-watching, calibration-testing side project built on top of Polymarket's public data.
+            </p>
           </div>
-          <AlertBell unreadCount={unreadAlertCount} onClick={() => setTab("alerts")} />
-        </div>
-      </header>
+          <div className="header-right">
+            <div className="header-stats">
+              <div className="stat">
+                <span className="stat-value">{Math.round(animatedWatchedCount)}</span>
+                <span className="stat-label">watched</span>
+              </div>
+              {lastUpdated && (
+                <div className="stat">
+                  <span className="stat-value">
+                    {lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                  <span className="stat-label">updated</span>
+                </div>
+              )}
+            </div>
+            <AlertBell unreadCount={unreadAlertCount} onClick={() => setTab("alerts")} />
+          </div>
+        </header>
 
-      <NavTabs active={tab} onChange={setTab} />
+        <NavTabs active={tab} onChange={setTab} />
 
-      <main className="app-main">
-        <div key={tab} className="tab-transition">
-          {tab === "overview" && (
-            <OverviewView
-              watchlist={watchlist}
-              alerts={alerts}
-              watchedIds={watchedIds}
-              onWatch={handleWatch}
-              onNavigate={setTab}
-            />
-          )}
-          {tab === "markets" && <MarketList onWatch={handleWatch} watchedIds={watchedIds} />}
-          {tab === "watchlist" && (
-            <Watchlist entries={watchlist} predictions={predictions} onRemove={handleRemove} onPredicted={refreshPredictions} />
-          )}
-          {tab === "calibrate" && <CalibrateView predictions={predictions} summary={predictionSummary} />}
-          {tab === "correlate" && <CorrelateView entries={watchlist} />}
-          {tab === "alerts" && <AlertsView alerts={alerts} config={config} />}
-          {tab === "about" && <AboutView />}
-        </div>
-      </main>
-    </div>
+        <main className="app-main">
+          <div key={tab} className="tab-transition">
+            {tab === "overview" && (
+              <OverviewView
+                watchlist={watchlist}
+                alerts={alerts}
+                watchedIds={watchedIds}
+                onWatch={handleWatch}
+                onNavigate={setTab}
+              />
+            )}
+            {tab === "markets" && <MarketList onWatch={handleWatch} watchedIds={watchedIds} />}
+            {tab === "watchlist" && (
+              <Watchlist entries={watchlist} predictions={predictions} onRemove={handleRemove} onPredicted={refreshPredictions} />
+            )}
+            {tab === "calibrate" && <CalibrateView predictions={predictions} summary={predictionSummary} />}
+            {tab === "correlate" && <CorrelateView entries={watchlist} />}
+            {tab === "alerts" && <AlertsView alerts={alerts} config={config} />}
+            {tab === "about" && <AboutView />}
+          </div>
+        </main>
+      </div>
+    </>
   );
 }

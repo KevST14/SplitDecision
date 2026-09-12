@@ -86,6 +86,24 @@ body::after {
   }
 }
 
+/* Matrix-style code rain — a canvas sitting behind everything, only revealed
+   over genuinely empty background (see MatrixRain.tsx for the hover logic
+   that decides "background" vs. "content"). pointer-events: none so it never
+   intercepts clicks; the activation check runs on document.elementFromPoint
+   instead of relying on this element receiving its own hover. */
+.matrix-rain {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
+.matrix-rain-active {
+  opacity: 0.9;
+}
+
 .app {
   max-width: 1240px;
   margin: 0 auto;
@@ -1031,6 +1049,10 @@ button.remove-btn:hover {
 
   .explainer-more {
     transition: none !important;
+  }
+
+  .matrix-rain {
+    display: none !important;
   }
 }
 
