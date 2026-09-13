@@ -11,6 +11,8 @@ Gamma (market metadata) and CLOB (price/order-book) APIs, no wallet, no API key.
 The **About** tab in the app has the full story: why this exists, how Polymarket
 actually works under the hood, and how this project works.
 
+![Split Decision overview tab, showing the biggest movers, recent alerts, and watchlist preview](docs/screenshot.png)
+
 ## Features
 
 - **Seven-tab dashboard** (Overview / Markets / Watchlist / Calibrate / Correlate
