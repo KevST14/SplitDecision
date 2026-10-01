@@ -1,5 +1,15 @@
 # Split Decision
 
+[![Tests](https://github.com/KevST14/SplitDecision/actions/workflows/tests.yml/badge.svg)](https://github.com/KevST14/SplitDecision/actions/workflows/tests.yml)
+[![License: MIT](https://img.shields.io/github/license/KevST14/SplitDecision)](LICENSE)
+![Python](https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
+![SQLite](https://img.shields.io/badge/SQLite-003B57?logo=sqlite&logoColor=white)
+![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white)
+![Last commit](https://img.shields.io/github/last-commit/KevST14/SplitDecision)
+
 A student side project for watching [Polymarket](https://polymarket.com) prediction
 markets — and for finding out whether I'm actually any good at guessing
 probabilities, or just confident. Browse by category, watchlist what you care
